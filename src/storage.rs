@@ -352,7 +352,6 @@ impl StorageApi {
             reserved_name: vec![],
             ..Default::default()
         };
-        dbg!(&proto_descriptor);
         let proto_schema = ProtoSchema {
             proto_descriptor: Some(proto_descriptor),
         };
