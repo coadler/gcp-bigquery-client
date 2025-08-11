@@ -46,6 +46,7 @@ pub enum ColumnType {
     Sint32,
     Sint64,
     Timestamp,
+    Duration,
 }
 
 impl From<ColumnType> for Type {
@@ -67,6 +68,7 @@ impl From<ColumnType> for Type {
             ColumnType::Sint32 => Type::Sint32,
             ColumnType::Sint64 => Type::Sfixed64,
             ColumnType::Timestamp => Type::Message,
+            ColumnType::Duration => Type::Duration,
         }
     }
 }
