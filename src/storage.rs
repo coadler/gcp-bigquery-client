@@ -1,6 +1,7 @@
 //! Manage BigQuery dataset.
 use std::{collections::HashMap, convert::TryInto, fmt::Display, sync::Arc};
 
+use itertools::Itertools;
 use prost::Message;
 use prost_types::{
     field_descriptor_proto::{Label, Type},
@@ -74,11 +75,55 @@ impl From<ColumnType> for Type {
 }
 
 impl ColumnType {
-    pub fn type_name(&self) -> Option<String> {
+    fn type_name(&self) -> Option<String> {
         match self {
-            ColumnType::Timestamp => Some(".google.protobuf.Timestamp".to_string()),
-            ColumnType::Duration => Some(".google.protobuf.Duration".to_string()),
+            // BigQuery Storage Write API expects well-known types by their fully qualified
+            // name without a leading dot.
+            ColumnType::Timestamp => Some("google_protobuf_Timestamp".to_string()),
+            ColumnType::Duration => Some("google_protobuf_Duration".to_string()),
             _ => None,
+        }
+    }
+
+    fn type_nested_fields(&self) -> Vec<FieldDescriptorProto> {
+        match self {
+            ColumnType::Timestamp => vec![
+                FieldDescriptorProto {
+                    name: Some("seconds".to_string()),
+                    number: Some(1),
+                    label: Some(Label::Optional.into()),
+                    r#type: Some(Type::Int64.into()),
+                    json_name: Some("seconds".to_string()),
+                    ..Default::default()
+                },
+                FieldDescriptorProto {
+                    name: Some("nanos".to_string()),
+                    number: Some(2),
+                    label: Some(Label::Optional.into()),
+                    r#type: Some(Type::Int32.into()),
+                    json_name: Some("nanos".to_string()),
+                    ..Default::default()
+                },
+            ],
+            ColumnType::Duration => vec![
+                FieldDescriptorProto {
+                    name: Some("seconds".to_string()),
+                    number: Some(1),
+                    label: Some(Label::Optional.into()),
+                    r#type: Some(Type::Int64.into()),
+                    json_name: Some("seconds".to_string()),
+                    ..Default::default()
+                },
+                FieldDescriptorProto {
+                    name: Some("nanos".to_string()),
+                    number: Some(2),
+                    label: Some(Label::Optional.into()),
+                    r#type: Some(Type::Int32.into()),
+                    json_name: Some("nanos".to_string()),
+                    ..Default::default()
+                },
+            ],
+            _ => vec![],
         }
     }
 }
@@ -288,14 +333,26 @@ impl StorageApi {
             name: Some("table_schema".to_string()),
             field: field_descriptors,
             extension: vec![],
-            nested_type: vec![],
+            nested_type: table_descriptor
+                .field_descriptors
+                .iter()
+                .filter(|fd| fd.typ.type_name().is_some())
+                .map(|fd| DescriptorProto {
+                    name: Some(fd.typ.type_name().unwrap_or_default()),
+                    field: fd.typ.type_nested_fields(),
+                    ..Default::default()
+                })
+                .unique_by(|fd| fd.name.clone())
+                .collect(),
             enum_type: vec![],
             extension_range: vec![],
             oneof_decl: vec![],
             options: None,
             reserved_range: vec![],
             reserved_name: vec![],
+            ..Default::default()
         };
+        dbg!(&proto_descriptor);
         let proto_schema = ProtoSchema {
             proto_descriptor: Some(proto_descriptor),
         };
