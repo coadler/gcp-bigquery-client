@@ -73,6 +73,16 @@ impl From<ColumnType> for Type {
     }
 }
 
+impl ColumnType {
+    pub fn type_name(&self) -> Option<String> {
+        match self {
+            ColumnType::Timestamp => Some(".google.protobuf.Timestamp".to_string()),
+            ColumnType::Duration => Some(".google.protobuf.Duration".to_string()),
+            _ => None,
+        }
+    }
+}
+
 /// Column mode
 #[derive(Clone, Copy, Debug)]
 pub enum ColumnMode {
@@ -264,7 +274,7 @@ impl StorageApi {
                     number: Some(fd.number as i32),
                     label: Some(label.into()),
                     r#type: Some(typ.into()),
-                    type_name: None,
+                    type_name: fd.typ.type_name(),
                     extendee: None,
                     default_value: None,
                     oneof_index: None,
